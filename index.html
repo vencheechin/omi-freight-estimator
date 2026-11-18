@@ -444,7 +444,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
 
     const product = num($("product").value);
     const airKg = chargeable > 0 ? Math.max(settings.airMinKg, chargeable) : 0;
-    const seaKg = chargeable > 0 ? Math.max(1, Math.round(chargeable)) : 0;
+    const seaKg = chargeable > 0 ? Math.max(1, Math.ceil(chargeable - 1e-9)) : 0;
     const airRateUsed = airKg < settings.airTierKg ? settings.airRateSmall : settings.airRate;
     const airShip = airKg * airRateUsed;
     const seaShip = seaKg * settings.seaRate;
@@ -510,7 +510,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     const notes = $("cmp-notes"); notes.innerHTML = "";
     [
       "Air shipping: " + fmtKg(airKg) + " kg" + (chargeable > 0 && chargeable < settings.airMinKg ? " (minimum " + fmtInt(settings.airMinKg) + " kg)" : "") + " × RMB " + airRateUsed + "/kg (" + (airKg < settings.airTierKg ? "under " + fmtInt(settings.airTierKg) + " kg" : fmtInt(settings.airTierKg) + " kg and over") + ")",
-      "Sea shipping: " + seaKg + " kg" + (chargeable > 0 && seaKg !== chargeable ? " (" + fmtKg(chargeable) + " kg rounded to nearest kg" + (Math.round(chargeable) < 1 ? ", minimum 1 kg" : "") + ")" : "") + " × RMB " + settings.seaRate + "/kg",
+      "Sea shipping: " + seaKg + " kg" + (chargeable > 0 && seaKg !== chargeable ? " (" + fmtKg(chargeable) + " kg rounded up to the next kg)" : "") + " × RMB " + settings.seaRate + "/kg",
       "ETA assumes you order today."
     ].forEach(t => { const d = document.createElement("div"); d.textContent = t; notes.appendChild(d); });
 
