@@ -1,6 +1,6 @@
 'use strict';
 /* Keeps a copy of the calculator so it opens with no network. Bump VERSION on each release. */
-const VERSION = 'freight-v1';
+const VERSION = 'freight-v2';
 const SHELL = [
   './', 'index.html', 'settings.json', 'manifest.webmanifest',
   'icons/omi-logo.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',

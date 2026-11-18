@@ -12,6 +12,7 @@ Live copy: https://vencheechin.github.io/omi-freight-estimator/
 - Enter the product cost (RMB).
 - Shipping fee = charged kg × air or sea rate.
 - Total cost = product cost + shipping fee, rounded to the nearest RMB.
+- AUD estimate = total RMB ÷ (Xe.com AUD→CNY rate − 0.05 transfer buffer), to the nearest dollar. Example: Xe shows 4.75, so 4.70 is used.
 - Arrival = today + time to order and send to the warehouse + air or sea transit.
 
 ## Change the rates for everyone
@@ -23,6 +24,8 @@ Edit `settings.json` on GitHub and commit. Everyone sees the new rates the next 
 | `airRate` | Air freight, RMB per kg | 55 |
 | `seaRate` | Sea freight, RMB per kg | 13 |
 | `divisor` | Volumetric divisor (cm³ per kg) | 5000 |
+| `xeRate` | Xe.com rate, RMB per 1 AUD (update from xe.com) | 4.75 |
+| `fxBuffer` | Transfer cost buffer taken off the Xe rate, RMB | 0.05 |
 | `order` | Time to order and send to the warehouse | 1 week |
 | `air` | Air transit from China | 7 days |
 | `sea` | Sea transit from China | 2 months |
