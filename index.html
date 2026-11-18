@@ -498,8 +498,8 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
       money("Product cost", product, product) +
       money("Shipping fee", airShip, seaShip) +
       money("Total cost", airCost, seaCost, "total") +
-      savingRow() +
       both("ETA", fmtDate(a.arrive), fmtDate(s.arrive), "arrive-row") +
+      savingRow() +
       soonerRow() +
       both("Charged weight", fmtKg(airKg) + " kg", seaKg + " kg") +
       both("Procurement to order", durText(settings.order), durText(settings.order)) +
@@ -529,7 +529,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     $("status").textContent = local ? "Using this device's own settings." : "Using company rates.";
   }
   $("save").addEventListener("click", () => {
-    try { localStorage.setItem(LS, JSON.stringify(settings)); saved = clone(settings); } catch (_) {
+    try { localStorage.setItem(LS, JSON.stringify({ settings, base: company })); saved = clone(settings); } catch (_) {
       $("status").textContent = "This browser would not save settings."; return;
     }
     setStatus(); refreshSaveBtn();
@@ -551,7 +551,11 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     } catch (_) {}
     let local = null;
     try { local = JSON.parse(localStorage.getItem(LS) || "null"); } catch (_) {}
-    settings = local ? normalise(local) : clone(company);
+    // Device settings only last until the company settings.json changes.
+    if (local && !(local.base && JSON.stringify(normalise(local.base)) === JSON.stringify(company))) {
+      local = null; try { localStorage.removeItem(LS); } catch (_) {}
+    }
+    settings = local ? normalise(local.settings) : clone(company);
     saved = clone(settings);
     fillSettingsForm(); render(); setStatus(); refreshSaveBtn();
   })();
