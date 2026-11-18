@@ -134,6 +134,8 @@ textarea { width: 100%; min-height: 220px; margin-top: 12px; font: 16px/1.4 ui-m
   .cmp thead tr:first-child th { font-size: 18px; }
   .cmp .zh { display: block; margin-left: 0; }
 }
+.fx-note { margin: 0; text-align: center; color: var(--olive); font-size: 16px; }
+.fx-note a { color: var(--navy); }
 footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 8px; }
 
 @media (max-width: 720px) {
@@ -191,7 +193,6 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
   </section>
 
   <div class="callout" id="callout"></div>
-  <p class="hint" id="fx-note" style="margin:-14px 0 0;text-align:center"></p>
 
   <details class="card admin" id="admin">
     <summary>
@@ -263,6 +264,8 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     <p class="hint" style="margin:14px 0 0">Changes saved here apply only on this device. To change the rates for everyone, update <b>settings.json</b> in the GitHub repo: click Copy settings.json, then paste it over the file on GitHub.</p>
     <textarea id="json-out" readonly hidden aria-label="settings.json contents"></textarea>
   </details>
+
+  <p class="fx-note" id="fx-note"></p>
 
   <footer>Creating a Happier Life for Everyone We Touch</footer>
 </div>
@@ -375,13 +378,13 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
       const r = await fetch("https://api.frankfurter.dev/v1/latest?base=AUD&symbols=CNY");
       const j = await r.json();
       const v = Number(j && j.rates && j.rates.CNY);
-      if (v > 0) { live = { rate: v, source: "European Central Bank via Frankfurter", date: fmtD(j.date) }; render(); return; }
+      if (v > 0) { live = { rate: v, site: "frankfurter.dev", url: "https://frankfurter.dev", source: "European Central Bank daily rate", date: fmtD(j.date) }; render(); return; }
     } catch (_) {}
     try {
       const r = await fetch("https://open.er-api.com/v6/latest/AUD");
       const j = await r.json();
       const v = Number(j && j.rates && j.rates.CNY);
-      if (v > 0) { live = { rate: v, source: "ExchangeRate-API", date: fmtD(j.time_last_update_utc) }; render(); }
+      if (v > 0) { live = { rate: v, site: "exchangerate-api.com", url: "https://www.exchangerate-api.com", source: "ExchangeRate-API", date: fmtD(j.time_last_update_utc) }; render(); }
     } catch (_) {}
   }
   function breakdown(el, product, ship) {
@@ -422,9 +425,15 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     const base = useLive ? live.rate : settings.xeRate;
     const fx = Math.max(0.01, base - settings.fxBuffer);
     const fxTxt = fx.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-    $("fx-note").textContent = "Exchange rate: 1 AUD = " + base.toLocaleString("en-US", { maximumFractionDigits: 4 }) + " RMB" +
-      (useLive ? " (" + live.source + ", " + live.date + ")" : settings.rateMode === "live" ? " (manual rate; live rate not available)" : " (manual rate)") +
-      ", less " + settings.fxBuffer + " for transfer cost = " + fxTxt + " RMB per AUD.";
+    const fxEl = $("fx-note");
+    fxEl.textContent = "Exchange rate: 1 AUD = " + base.toLocaleString("en-US", { maximumFractionDigits: 4 }) + " RMB, less " + settings.fxBuffer + " for transfer cost = " + fxTxt + " RMB per AUD. ";
+    if (useLive) {
+      fxEl.append("Source: ");
+      const l = document.createElement("a"); l.href = live.url; l.target = "_blank"; l.rel = "noopener"; l.textContent = live.site;
+      fxEl.append(l, " (" + live.source + ", " + live.date + ").");
+    } else {
+      fxEl.append(settings.rateMode === "live" ? "Manual rate from Admin settings (live rate not available)." : "Manual rate from Admin settings.");
+    }
     const audN = (rmb) => Math.round(rmb / fx).toLocaleString("en-US");
     const aud = (rmb) => "≈ AUD " + audN(rmb);
 
@@ -461,7 +470,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     [
       "Air shipping: " + fmtKg(airKg) + " kg" + (chargeable > 0 && chargeable < settings.airMinKg ? " (minimum " + fmtInt(settings.airMinKg) + " kg)" : "") + " × RMB " + settings.airRate + "/kg",
       "Sea shipping: " + seaKg + " kg" + (chargeable > 0 && seaKg !== chargeable ? " (" + fmtKg(chargeable) + " kg rounded to nearest kg" + (Math.round(chargeable) < 1 ? ", minimum 1 kg" : "") + ")" : "") + " × RMB " + settings.seaRate + "/kg",
-      "AUD at " + fxTxt + " RMB per AUD. Arrival dates assume you order today."
+      "Arrival dates assume you order today."
     ].forEach(t => { const d = document.createElement("div"); d.textContent = t; notes.appendChild(d); });
 
     const co = $("callout");
