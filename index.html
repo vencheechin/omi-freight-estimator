@@ -125,10 +125,8 @@ textarea { width: 100%; min-height: 220px; margin-top: 12px; font: 16px/1.4 ui-m
 .cmp tbody tr:nth-child(even) td { background: var(--card-beige); }
 .cmp tr.total td { font-weight: 700; color: var(--navy); border-top: 1.5px solid var(--olive); }
 .cmp tr.total td.win { color: var(--ochre); }
-.cmp tr.verdict td { background: var(--card-light) !important; text-align: left; color: var(--navy); white-space: normal; padding-block: 6px; }
+.cmp tr.verdict td { background: var(--navy) !important; color: var(--white); text-align: center; white-space: normal; font-size: 20px; padding: 10px 12px; border-top: 3px solid var(--card-light); border-bottom: 3px solid var(--card-light); }
 .cmp tr.verdict td b { color: var(--ochre); }
-.cmp tr.verdict:last-of-type td, .cmp tr.verdict + tr:not(.verdict) td { }
-.cmp tr.verdict + tr:not(.verdict) td { border-top: 1.5px solid var(--olive); }
 .cmp td.span { text-align: center; color: var(--navy); }
 .cmp tr.arrive-row td.span { font-weight: 700; color: var(--ochre); }
 .cmp-notes { margin-top: 12px; color: var(--olive); font-size: 16px; display: flex; flex-direction: column; gap: 2px; }
@@ -481,13 +479,14 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
       "<tr" + (cls ? ' class="' + cls + '"' : "") + "><td>" + label + "</td>" +
       "<td" + (cls && airWin ? ' class="win"' : "") + ">" + fmtRMB(ar) + "</td><td" + (cls && airWin ? ' class="win"' : "") + ">" + audN(ar) + "</td>" +
       '<td class="sep' + (cls && seaWin ? " win" : "") + '">' + fmtRMB(sr) + "</td><td" + (cls && seaWin ? ' class="win"' : "") + ">" + audN(sr) + "</td></tr>";
-    const verdicts = () => {
-      const rows = [];
+    const band = (t) => '<tr class="verdict"><td colspan="5">' + t + "</td></tr>";
+    const savingRow = () => {
       const diff = Math.abs(airCost - seaCost);
-      if (chargeable > 0 && Math.round(diff) > 0) rows.push("<b>" + (seaWin ? "Sea" : "Air") + "</b> saves RMB " + fmtRMB(diff) + " or AUD " + audN(diff));
+      return chargeable > 0 && Math.round(diff) > 0 ? band("<b>" + (seaWin ? "Sea" : "Air") + "</b> saves RMB " + fmtRMB(diff) + " or AUD " + audN(diff)) : "";
+    };
+    const soonerRow = () => {
       const dd = Math.abs(s.totalDays - a.totalDays);
-      if (dd > 0) rows.push("<b>" + (a.totalDays < s.totalDays ? "Air" : "Sea") + "</b> arrives " + (dd < 21 ? dd + " days" : spanText(dd)) + " sooner");
-      return rows.map(t => '<tr class="verdict"><td colspan="5">' + t + "</td></tr>").join("");
+      return dd > 0 ? band("<b>" + (a.totalDays < s.totalDays ? "Air" : "Sea") + "</b> arrives " + (dd < 21 ? dd + " days" : spanText(dd)) + " sooner") : "";
     };
     const both = (label, av, sv, cls) =>
       "<tr" + (cls ? ' class="' + cls + '"' : "") + "><td>" + label + '</td><td colspan="2" class="span">' + av + '</td><td colspan="2" class="span sep">' + sv + "</td></tr>";
@@ -499,8 +498,9 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
       money("Product cost", product, product) +
       money("Shipping fee", airShip, seaShip) +
       money("Total cost", airCost, seaCost, "total") +
-      verdicts() +
+      savingRow() +
       both("ETA", fmtDate(a.arrive), fmtDate(s.arrive), "arrive-row") +
+      soonerRow() +
       both("Charged weight", fmtKg(airKg) + " kg", seaKg + " kg") +
       both("Procurement to order", durText(settings.order), durText(settings.order)) +
       both("Supplier to warehouse", durText(settings.supplier), durText(settings.supplier)) +
