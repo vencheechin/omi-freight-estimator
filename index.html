@@ -211,24 +211,31 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
         <div class="input-unit"><input id="s-sea-rate" type="number" min="0" step="0.5"><span>RMB/kg</span></div>
       </div>
       <div class="field">
-        <span class="field-label" id="l-order">Order to warehouse</span>
+        <span class="field-label" id="l-order">Procurement to place order</span>
         <div class="dur" role="group" aria-labelledby="l-order">
-          <input id="s-order-n" type="number" min="0" step="1" aria-label="Order lead time amount">
-          <select id="s-order-u" aria-label="Order lead time unit"><option value="days">days</option><option value="weeks">weeks</option><option value="months">months</option></select>
+          <input id="s-order-n" type="number" min="0" step="1" aria-label="Procurement time amount">
+          <select id="s-order-u" aria-label="Procurement time unit"><option value="days">days</option><option value="workdays">working days</option><option value="weeks">weeks</option><option value="months">months</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="l-supp">Supplier to warehouse</span>
+        <div class="dur" role="group" aria-labelledby="l-supp">
+          <input id="s-supp-n" type="number" min="0" step="1" aria-label="Supplier delivery time amount">
+          <select id="s-supp-u" aria-label="Supplier delivery time unit"><option value="days">days</option><option value="workdays">working days</option><option value="weeks">weeks</option><option value="months">months</option></select>
         </div>
       </div>
       <div class="field">
         <span class="field-label" id="l-air">Air transit</span>
         <div class="dur" role="group" aria-labelledby="l-air">
           <input id="s-air-n" type="number" min="0" step="1" aria-label="Air transit amount">
-          <select id="s-air-u" aria-label="Air transit unit"><option value="days">days</option><option value="weeks">weeks</option><option value="months">months</option></select>
+          <select id="s-air-u" aria-label="Air transit unit"><option value="days">days</option><option value="workdays">working days</option><option value="weeks">weeks</option><option value="months">months</option></select>
         </div>
       </div>
       <div class="field">
         <span class="field-label" id="l-sea">Sea transit</span>
         <div class="dur" role="group" aria-labelledby="l-sea">
           <input id="s-sea-n" type="number" min="0" step="1" aria-label="Sea transit amount">
-          <select id="s-sea-u" aria-label="Sea transit unit"><option value="days">days</option><option value="weeks">weeks</option><option value="months">months</option></select>
+          <select id="s-sea-u" aria-label="Sea transit unit"><option value="days">days</option><option value="workdays">working days</option><option value="weeks">weeks</option><option value="months">months</option></select>
         </div>
       </div>
       <div class="field">
@@ -274,7 +281,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
 (function () {
   const DEFAULTS = {
     airRate: 55, seaRate: 13, divisor: 5000, xeRate: 4.49, fxBuffer: 0.05, rateMode: "live", airMinKg: 1,
-    order: { n: 1, u: "weeks" }, air: { n: 7, u: "days" }, sea: { n: 2, u: "months" }
+    order: { n: 1, u: "days" }, supplier: { n: 5, u: "workdays" }, air: { n: 7, u: "days" }, sea: { n: 2, u: "months" }
   };
   let settings = clone(DEFAULTS);
   let saved = clone(DEFAULTS);
@@ -290,11 +297,17 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
 
   function durText(d) {
     const n = d.n, u = d.u;
-    const unit = n === 1 ? u.replace(/s$/, "") : u;
+    const name = u === "workdays" ? "working days" : u;
+    const unit = n === 1 ? name.replace(/s$/, "") : name;
     return fmtInt(n) + " " + unit;
   }
   function addDur(date, d) {
     const r = new Date(date.getTime());
+    if (d.u === "workdays") {
+      let left = Math.round(d.n);
+      while (left > 0) { r.setDate(r.getDate() + 1); const wd = r.getDay(); if (wd !== 0 && wd !== 6) left--; }
+      return r;
+    }
     if (d.u === "months") {
       const whole = Math.floor(d.n), frac = d.n - whole;
       const day = r.getDate();
@@ -311,7 +324,9 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
   function spanText(days) {
     if (days < 21) return days + " days";
     if (days < 56) { const w = Math.round(days / 7 * 2) / 2; return "about " + w + " weeks"; }
-    const m = Math.round(days / 30.44 * 2) / 2; return "about " + m + " months";
+    const m = Math.floor(days / 30.44), w = Math.round((days - m * 30.44) / 7);
+    if (w >= 4) return "about " + (m + 1) + " months";
+    return "about " + m + " months" + (w ? " " + w + (w === 1 ? " week" : " weeks") : "");
   }
   const fmtDate = (d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
@@ -322,9 +337,9 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     { const v = Number(s.fxBuffer); if (isFinite(v) && v >= 0) out.fxBuffer = v; }
     { const v = Number(s.airMinKg); if (isFinite(v) && v >= 0) out.airMinKg = v; }
     if (s.rateMode === "manual" || s.rateMode === "live") out.rateMode = s.rateMode;
-    ["order", "air", "sea"].forEach(k => {
+    ["order", "supplier", "air", "sea"].forEach(k => {
       const d = s[k];
-      if (d && isFinite(Number(d.n)) && Number(d.n) >= 0 && ["days", "weeks", "months"].includes(d.u)) out[k] = { n: Number(d.n), u: d.u };
+      if (d && isFinite(Number(d.n)) && Number(d.n) >= 0 && ["days", "workdays", "weeks", "months"].includes(d.u)) out[k] = { n: Number(d.n), u: d.u };
     });
     return out;
   }
@@ -335,6 +350,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     $("s-divisor").value = settings.divisor;
     $("s-xe").value = settings.xeRate; $("s-buffer").value = settings.fxBuffer; $("s-mode").value = settings.rateMode; $("s-airmin").value = settings.airMinKg;
     $("s-order-n").value = settings.order.n; $("s-order-u").value = settings.order.u;
+    $("s-supp-n").value = settings.supplier.n; $("s-supp-u").value = settings.supplier.u;
     $("s-air-n").value = settings.air.n; $("s-air-u").value = settings.air.u;
     $("s-sea-n").value = settings.sea.n; $("s-sea-u").value = settings.sea.u;
   }
@@ -342,6 +358,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     return normalise({
       airRate: $("s-air-rate").value, seaRate: $("s-sea-rate").value, divisor: $("s-divisor").value, xeRate: $("s-xe").value, fxBuffer: $("s-buffer").value, rateMode: $("s-mode").value, airMinKg: $("s-airmin").value,
       order: { n: $("s-order-n").value, u: $("s-order-u").value },
+      supplier: { n: $("s-supp-n").value, u: $("s-supp-u").value },
       air: { n: $("s-air-n").value, u: $("s-air-u").value },
       sea: { n: $("s-sea-n").value, u: $("s-sea-u").value }
     });
@@ -352,7 +369,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
   function timeline(el, mode) {
     const d = settings[mode];
     const start = new Date(); start.setHours(0, 0, 0, 0);
-    const atWh = addDur(start, settings.order);
+    const atWh = addDur(addDur(start, settings.order), settings.supplier);
     const arrive = addDur(atWh, d);
     const totalDays = Math.round((arrive - start) / dayMs);
     if (!el) return { arrive, totalDays };
@@ -461,7 +478,8 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
       money("Shipping fee", airShip, seaShip) +
       money("Total cost", airCost, seaCost, "total") +
       both("Charged weight", fmtKg(airKg) + " kg", seaKg + " kg") +
-      both("Order to warehouse", durText(settings.order), durText(settings.order)) +
+      both("Procurement to order", durText(settings.order), durText(settings.order)) +
+      both("Supplier to warehouse", durText(settings.supplier), durText(settings.supplier)) +
       both("Transit from China", durText(settings.air), durText(settings.sea)) +
       both("Total time", spanText(a.totalDays), spanText(s.totalDays)) +
       both("Arrives around", fmtDate(a.arrive), fmtDate(s.arrive), "arrive-row") +

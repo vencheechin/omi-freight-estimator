@@ -8,7 +8,11 @@
   "fxBuffer": 0.05,
   "order": {
     "n": 1,
-    "u": "weeks"
+    "u": "days"
+  },
+  "supplier": {
+    "n": 5,
+    "u": "workdays"
   },
   "air": {
     "n": 7,

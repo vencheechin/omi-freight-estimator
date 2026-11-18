@@ -15,7 +15,7 @@ Live copy: https://vencheechin.github.io/omi-freight-estimator/
 - Air: anything under 1 kg is charged as 1 kg.
 - Sea: the weight is rounded to the nearest kg (at least 1 kg).
 - AUD estimate = total RMB ÷ (AUD→CNY rate − 0.05 transfer buffer), to the nearest dollar. The rate is the European Central Bank's daily rate from Frankfurter (api.frankfurter.dev), with ExchangeRate-API (open.er-api.com) as a backup and `xeRate` in settings.json if neither loads.
-- Arrival = today + time to order and send to the warehouse + air or sea transit.
+- Arrival = today + procurement time to place the order (1 day) + supplier delivery to the warehouse (5 working days, weekends skipped) + air or sea transit.
 
 ## Change the rates for everyone
 
@@ -30,11 +30,12 @@ Edit `settings.json` on GitHub and commit. Everyone sees the new rates the next 
 | `rateMode` | `live` (daily ECB rate) or `manual` (use `xeRate`) | live |
 | `xeRate` | Manual rate, RMB per 1 AUD | 4.49 |
 | `fxBuffer` | Transfer cost buffer taken off the Xe rate, RMB | 0.05 |
-| `order` | Time to order and send to the warehouse | 1 week |
+| `order` | Procurement team to place the order | 1 day |
+| `supplier` | Supplier to send to the warehouse | 5 working days |
 | `air` | Air transit from China | 7 days |
 | `sea` | Sea transit from China | 2 months |
 
-Durations are `{ "n": number, "u": "days" | "weeks" | "months" }`.
+Durations are `{ "n": number, "u": "days" | "workdays" | "weeks" | "months" }` (`workdays` skips Saturdays and Sundays).
 
 The Admin settings panel on the page can try other rates on one device only. Its "Copy settings.json"
 button copies the current values, ready to paste into `settings.json` on GitHub.
