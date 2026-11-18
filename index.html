@@ -125,6 +125,10 @@ textarea { width: 100%; min-height: 220px; margin-top: 12px; font: 16px/1.4 ui-m
 .cmp tbody tr:nth-child(even) td { background: var(--card-beige); }
 .cmp tr.total td { font-weight: 700; color: var(--navy); border-top: 1.5px solid var(--olive); }
 .cmp tr.total td.win { color: var(--ochre); }
+.cmp tr.verdict td { background: var(--card-light) !important; text-align: left; color: var(--navy); white-space: normal; padding-block: 6px; }
+.cmp tr.verdict td b { color: var(--ochre); }
+.cmp tr.verdict:last-of-type td, .cmp tr.verdict + tr:not(.verdict) td { }
+.cmp tr.verdict + tr:not(.verdict) td { border-top: 1.5px solid var(--olive); }
 .cmp td.span { text-align: center; color: var(--navy); }
 .cmp tr.arrive-row td.span { font-weight: 700; color: var(--ochre); }
 .cmp-notes { margin-top: 12px; color: var(--olive); font-size: 16px; display: flex; flex-direction: column; gap: 2px; }
@@ -192,7 +196,6 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     <div class="cmp-notes" id="cmp-notes"></div>
   </section>
 
-  <div class="callout" id="callout"></div>
 
   <details class="card admin" id="admin">
     <summary>
@@ -467,6 +470,14 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
       "<tr" + (cls ? ' class="' + cls + '"' : "") + "><td>" + label + "</td>" +
       "<td" + (cls && airWin ? ' class="win"' : "") + ">" + fmtRMB(ar) + "</td><td" + (cls && airWin ? ' class="win"' : "") + ">" + audN(ar) + "</td>" +
       '<td class="sep' + (cls && seaWin ? " win" : "") + '">' + fmtRMB(sr) + "</td><td" + (cls && seaWin ? ' class="win"' : "") + ">" + audN(sr) + "</td></tr>";
+    const verdicts = () => {
+      const rows = [];
+      const diff = Math.abs(airCost - seaCost);
+      if (chargeable > 0 && Math.round(diff) > 0) rows.push("<b>" + (seaWin ? "Sea" : "Air") + "</b> saves RMB " + fmtRMB(diff) + " or AUD " + audN(diff));
+      const dd = Math.abs(s.totalDays - a.totalDays);
+      if (dd > 0) rows.push("<b>" + (a.totalDays < s.totalDays ? "Air" : "Sea") + "</b> arrives " + (dd < 21 ? dd + " days" : spanText(dd)) + " sooner");
+      return rows.map(t => '<tr class="verdict"><td colspan="5">' + t + "</td></tr>").join("");
+    };
     const both = (label, av, sv, cls) =>
       "<tr" + (cls ? ' class="' + cls + '"' : "") + "><td>" + label + '</td><td colspan="2" class="span">' + av + '</td><td colspan="2" class="span sep">' + sv + "</td></tr>";
     $("cmp").innerHTML =
@@ -477,6 +488,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
       money("Product cost", product, product) +
       money("Shipping fee", airShip, seaShip) +
       money("Total cost", airCost, seaCost, "total") +
+      verdicts() +
       both("Charged weight", fmtKg(airKg) + " kg", seaKg + " kg") +
       both("Procurement to order", durText(settings.order), durText(settings.order)) +
       both("Supplier to warehouse", durText(settings.supplier), durText(settings.supplier)) +
@@ -491,18 +503,6 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
       "Arrival dates assume you order today."
     ].forEach(t => { const d = document.createElement("div"); d.textContent = t; notes.appendChild(d); });
 
-    const co = $("callout");
-    if (chargeable <= 0) {
-      co.innerHTML = "Enter a weight or carton size to see both options.";
-    } else {
-      const diff = Math.abs(airCost - seaCost);
-      const daysSaved = Math.abs(s.totalDays - a.totalDays);
-      const cheap = seaCost <= airCost ? "Sea" : "Air";
-      const fast = a.totalDays <= s.totalDays ? "Air" : "Sea";
-      co.innerHTML = cheap === fast
-        ? "<b>" + cheap + "</b> is both cheaper and faster for this item."
-        : "Total: Air RMB " + fmtRMB(airCost) + " (" + aud(airCost).slice(2) + "), Sea RMB " + fmtRMB(seaCost) + " (" + aud(seaCost).slice(2) + "). <b>" + cheap + "</b> saves RMB " + fmtRMB(diff) + ". <b>" + fast + "</b> arrives about " + spanText(daysSaved).replace("about ", "") + " sooner.";
-    }
   }
 
   ["product", "weight", "len", "wid", "hei"].forEach(id => $(id).addEventListener("input", render));
