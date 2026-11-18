@@ -109,6 +109,31 @@ summary::-webkit-details-marker { display: none; }
 .admin:not([open]) .admin-head h2::after { content: " ›"; color: var(--olive); }
 textarea { width: 100%; min-height: 220px; margin-top: 12px; font: 16px/1.4 ui-monospace, Menlo, monospace; color: var(--navy); background: var(--white); border: 1.25px solid var(--rule); border-radius: 10px; padding: 10px; }
 
+.tbl-wrap { overflow-x: auto; margin-inline: -6px; }
+.cmp { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; font-size: 18px; }
+.cmp th, .cmp td { padding: 9px 10px; text-align: right; white-space: nowrap; }
+.cmp tbody td:first-child { text-align: left; white-space: normal; color: var(--charcoal); }
+.cmp thead th { background: var(--navy); color: var(--white); font-weight: 700; }
+.cmp thead tr:first-child th { text-align: center; font-size: 20px; padding-top: 12px; }
+.cmp thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+.cmp thead tr:first-child th:last-child { border-top-right-radius: 10px; }
+.cmp thead tr + tr th { font-weight: 400; color: var(--card-beige); font-size: 16px; padding-top: 0; }
+.cmp thead .zh { font-family: var(--zh); font-weight: 400; font-size: 16px; margin-left: 4px; }
+.cmp .tag { display: inline-block; margin-top: 4px; font-size: 14px; }
+.cmp .sep { border-left: 1px solid var(--rule); }
+.cmp thead .sep { border-left-color: var(--steel); }
+.cmp tbody tr:nth-child(even) td { background: var(--card-beige); }
+.cmp tr.total td { font-weight: 700; color: var(--navy); border-top: 1.5px solid var(--olive); }
+.cmp tr.total td.win { color: var(--ochre); }
+.cmp td.span { text-align: center; color: var(--navy); }
+.cmp tr.arrive-row td.span { font-weight: 700; color: var(--ochre); }
+.cmp-notes { margin-top: 12px; color: var(--olive); font-size: 16px; display: flex; flex-direction: column; gap: 2px; }
+@media (max-width: 480px) {
+  .cmp { font-size: 16px; }
+  .cmp th, .cmp td { padding: 8px 6px; }
+  .cmp thead tr:first-child th { font-size: 18px; }
+  .cmp .zh { display: block; margin-left: 0; }
+}
 footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 8px; }
 
 @media (max-width: 720px) {
@@ -159,37 +184,10 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     <div class="working" id="working" aria-live="polite"></div>
   </section>
 
-  <section class="pair" aria-label="Air and sea comparison">
-    <article class="mode" id="air-card">
-      <div class="mode-head">
-        <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="16" cy="16" r="15"/><path d="M8 18.5l16-6.5c1.2-.5 2 .9 1 1.6L17 19.5l-1.5 5-1.6.6-.4-4.4-4.2 1.5-1.4 2-1.2.4.7-3.4z" fill="none"/></svg>
-        <span class="name">Air<span class="zh">空运</span></span>
-        <span class="tags" id="air-tags"></span>
-      </div>
-      <div class="mode-body">
-        <div class="cost" id="air-cost">–</div>
-        <div class="aud" id="air-aud"></div>
-        <div class="timeline breakdown" id="air-break"></div>
-        <div class="calc-line" id="air-calc"></div>
-        <div class="timeline" id="air-time"></div>
-        <div class="arrive" id="air-arrive"></div>
-      </div>
-    </article>
-    <article class="mode" id="sea-card">
-      <div class="mode-head">
-        <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="16" cy="16" r="15"/><path d="M7 18h18l-2.5 5h-13z"/><path d="M11 18v-5h10v5"/><path d="M15 13v-3h3"/></svg>
-        <span class="name">Sea<span class="zh">海运</span></span>
-        <span class="tags" id="sea-tags"></span>
-      </div>
-      <div class="mode-body">
-        <div class="cost" id="sea-cost">–</div>
-        <div class="aud" id="sea-aud"></div>
-        <div class="timeline breakdown" id="sea-break"></div>
-        <div class="calc-line" id="sea-calc"></div>
-        <div class="timeline" id="sea-time"></div>
-        <div class="arrive" id="sea-arrive"></div>
-      </div>
-    </article>
+  <section class="card compare" aria-labelledby="cmp-h">
+    <h2 id="cmp-h" style="margin-bottom:14px">Air vs Sea<span class="zh">空运与海运比较</span></h2>
+    <div class="tbl-wrap"><table id="cmp" class="cmp"></table></div>
+    <div class="cmp-notes" id="cmp-notes"></div>
   </section>
 
   <div class="callout" id="callout"></div>
@@ -354,6 +352,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     const atWh = addDur(start, settings.order);
     const arrive = addDur(atWh, d);
     const totalDays = Math.round((arrive - start) / dayMs);
+    if (!el) return { arrive, totalDays };
     el.innerHTML = "";
     const rows = [
       ["Order and send to warehouse", durText(settings.order), false],
@@ -419,8 +418,6 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     const seaShip = seaKg * settings.seaRate;
     const airCost = product + airShip;
     const seaCost = product + seaShip;
-    $("air-cost").innerHTML = fmtRMB(airCost) + "<small>RMB</small>";
-    $("sea-cost").innerHTML = fmtRMB(seaCost) + "<small>RMB</small>";
     const useLive = settings.rateMode === "live" && live;
     const base = useLive ? live.rate : settings.xeRate;
     const fx = Math.max(0.01, base - settings.fxBuffer);
@@ -428,30 +425,44 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     $("fx-note").textContent = "Exchange rate: 1 AUD = " + base.toLocaleString("en-US", { maximumFractionDigits: 4 }) + " RMB" +
       (useLive ? " (" + live.source + ", " + live.date + ")" : settings.rateMode === "live" ? " (manual rate; live rate not available)" : " (manual rate)") +
       ", less " + settings.fxBuffer + " for transfer cost = " + fxTxt + " RMB per AUD.";
-    const aud = (rmb) => "≈ AUD " + Math.round(rmb / fx).toLocaleString("en-US");
-    $("air-aud").innerHTML = aud(airCost) + " <small>at " + fxTxt + " RMB per AUD</small>";
-    $("sea-aud").innerHTML = aud(seaCost) + " <small>at " + fxTxt + " RMB per AUD</small>";
-    breakdown($("air-break"), product, airShip);
-    breakdown($("sea-break"), product, seaShip);
-    $("air-calc").textContent = "Shipping fee: " + fmtKg(airKg) + " kg" + (chargeable > 0 && chargeable < settings.airMinKg ? " (minimum " + fmtInt(settings.airMinKg) + " kg)" : "") + " × RMB " + settings.airRate + "/kg";
-    $("sea-calc").textContent = "Shipping fee: " + seaKg + " kg" + (chargeable > 0 && seaKg !== chargeable ? " (" + fmtKg(chargeable) + " kg rounded to nearest kg" + (Math.round(chargeable) < 1 ? ", minimum 1 kg" : "") + ")" : "") + " × RMB " + settings.seaRate + "/kg";
+    const audN = (rmb) => Math.round(rmb / fx).toLocaleString("en-US");
+    const aud = (rmb) => "≈ AUD " + audN(rmb);
 
-    const a = timeline($("air-time"), "air");
-    const s = timeline($("sea-time"), "sea");
-    $("air-arrive").innerHTML = "Arrives around <b>" + fmtDate(a.arrive) + "</b> if ordered today";
-    $("sea-arrive").innerHTML = "Arrives around <b>" + fmtDate(s.arrive) + "</b> if ordered today";
-
+    const a = timeline(null, "air");
+    const s = timeline(null, "sea");
     const tags = { air: [], sea: [] };
     if (chargeable > 0 || product > 0) {
       if (airCost < seaCost) tags.air.push("Cheaper"); else if (seaCost < airCost) tags.sea.push("Cheaper");
     }
     if (a.totalDays < s.totalDays) tags.air.push("Faster"); else if (s.totalDays < a.totalDays) tags.sea.push("Faster");
-    ["air", "sea"].forEach(m => {
-      const el = $(m + "-tags"); el.innerHTML = "";
-      tags[m].forEach(t => { const x = document.createElement("span"); x.className = "tag"; x.textContent = t; el.appendChild(x); });
-    });
-    $("sea-card").classList.toggle("best", tags.sea.includes("Cheaper"));
-    $("air-card").classList.toggle("best", false);
+    const tagHtml = (m) => tags[m].map(t => '<br><span class="tag">' + t + "</span>").join(" ");
+    const airWin = airCost < seaCost, seaWin = seaCost < airCost;
+    const money = (label, ar, sr, cls) =>
+      "<tr" + (cls ? ' class="' + cls + '"' : "") + "><td>" + label + "</td>" +
+      "<td" + (cls && airWin ? ' class="win"' : "") + ">" + fmtRMB(ar) + "</td><td" + (cls && airWin ? ' class="win"' : "") + ">" + audN(ar) + "</td>" +
+      '<td class="sep' + (cls && seaWin ? " win" : "") + '">' + fmtRMB(sr) + "</td><td" + (cls && seaWin ? ' class="win"' : "") + ">" + audN(sr) + "</td></tr>";
+    const both = (label, av, sv, cls) =>
+      "<tr" + (cls ? ' class="' + cls + '"' : "") + "><td>" + label + '</td><td colspan="2" class="span">' + av + '</td><td colspan="2" class="span sep">' + sv + "</td></tr>";
+    $("cmp").innerHTML =
+      '<thead><tr><th rowspan="2" scope="col"></th>' +
+      '<th colspan="2" scope="colgroup">Air<span class="zh">空运</span>' + tagHtml("air") + "</th>" +
+      '<th colspan="2" scope="colgroup" class="sep">Sea<span class="zh">海运</span>' + tagHtml("sea") + "</th></tr>" +
+      '<tr><th scope="col">RMB</th><th scope="col">AUD</th><th scope="col" class="sep">RMB</th><th scope="col">AUD</th></tr></thead><tbody>' +
+      money("Product cost", product, product) +
+      money("Shipping fee", airShip, seaShip) +
+      money("Total cost", airCost, seaCost, "total") +
+      both("Charged weight", fmtKg(airKg) + " kg", seaKg + " kg") +
+      both("Order to warehouse", durText(settings.order), durText(settings.order)) +
+      both("Transit from China", durText(settings.air), durText(settings.sea)) +
+      both("Total time", spanText(a.totalDays), spanText(s.totalDays)) +
+      both("Arrives around", fmtDate(a.arrive), fmtDate(s.arrive), "arrive-row") +
+      "</tbody>";
+    const notes = $("cmp-notes"); notes.innerHTML = "";
+    [
+      "Air shipping: " + fmtKg(airKg) + " kg" + (chargeable > 0 && chargeable < settings.airMinKg ? " (minimum " + fmtInt(settings.airMinKg) + " kg)" : "") + " × RMB " + settings.airRate + "/kg",
+      "Sea shipping: " + seaKg + " kg" + (chargeable > 0 && seaKg !== chargeable ? " (" + fmtKg(chargeable) + " kg rounded to nearest kg" + (Math.round(chargeable) < 1 ? ", minimum 1 kg" : "") + ")" : "") + " × RMB " + settings.seaRate + "/kg",
+      "AUD at " + fxTxt + " RMB per AUD. Arrival dates assume you order today."
+    ].forEach(t => { const d = document.createElement("div"); d.textContent = t; notes.appendChild(d); });
 
     const co = $("callout");
     if (chargeable <= 0) {
