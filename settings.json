@@ -2,7 +2,9 @@
   "airRate": 55,
   "seaRate": 13,
   "divisor": 5000,
-  "xeRate": 4.75,
+  "airMinKg": 1,
+  "rateMode": "live",
+  "xeRate": 4.49,
   "fxBuffer": 0.05,
   "order": {
     "n": 1,

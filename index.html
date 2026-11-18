@@ -193,6 +193,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
   </section>
 
   <div class="callout" id="callout"></div>
+  <p class="hint" id="fx-note" style="margin:-14px 0 0;text-align:center"></p>
 
   <details class="card admin" id="admin">
     <summary>
@@ -232,9 +233,19 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
         </div>
       </div>
       <div class="field">
-        <label class="field-label" for="s-xe">Xe.com rate: 1 AUD =</label>
+        <label class="field-label" for="s-airmin">Air minimum charge</label>
+        <div class="input-unit"><input id="s-airmin" type="number" min="0" step="0.5"><span>kg</span></div>
+        <span class="hint">Lighter items are charged at this weight</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="s-mode">Exchange rate</label>
+        <select id="s-mode"><option value="live">Live daily rate</option><option value="manual">Manual rate</option></select>
+        <span class="hint">Live: European Central Bank rate via Frankfurter</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="s-xe">Manual rate: 1 AUD =</label>
         <div class="input-unit"><input id="s-xe" type="number" min="0" step="0.01"><span>RMB</span></div>
-        <span class="hint">From xe.com, AUD to CNY</span>
+        <span class="hint">Used when set to Manual or the live rate can't load</span>
       </div>
       <div class="field">
         <label class="field-label" for="s-buffer">Transfer cost buffer</label>
@@ -261,7 +272,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
 <script>
 (function () {
   const DEFAULTS = {
-    airRate: 55, seaRate: 13, divisor: 5000, xeRate: 4.75, fxBuffer: 0.05,
+    airRate: 55, seaRate: 13, divisor: 5000, xeRate: 4.49, fxBuffer: 0.05, rateMode: "live", airMinKg: 1,
     order: { n: 1, u: "weeks" }, air: { n: 7, u: "days" }, sea: { n: 2, u: "months" }
   };
   let settings = clone(DEFAULTS);
@@ -308,6 +319,8 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     if (!s || typeof s !== "object") return out;
     ["airRate", "seaRate", "divisor", "xeRate"].forEach(k => { const v = Number(s[k]); if (isFinite(v) && v > 0) out[k] = v; });
     { const v = Number(s.fxBuffer); if (isFinite(v) && v >= 0) out.fxBuffer = v; }
+    { const v = Number(s.airMinKg); if (isFinite(v) && v >= 0) out.airMinKg = v; }
+    if (s.rateMode === "manual" || s.rateMode === "live") out.rateMode = s.rateMode;
     ["order", "air", "sea"].forEach(k => {
       const d = s[k];
       if (d && isFinite(Number(d.n)) && Number(d.n) >= 0 && ["days", "weeks", "months"].includes(d.u)) out[k] = { n: Number(d.n), u: d.u };
@@ -319,14 +332,14 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     $("s-air-rate").value = settings.airRate;
     $("s-sea-rate").value = settings.seaRate;
     $("s-divisor").value = settings.divisor;
-    $("s-xe").value = settings.xeRate; $("s-buffer").value = settings.fxBuffer;
+    $("s-xe").value = settings.xeRate; $("s-buffer").value = settings.fxBuffer; $("s-mode").value = settings.rateMode; $("s-airmin").value = settings.airMinKg;
     $("s-order-n").value = settings.order.n; $("s-order-u").value = settings.order.u;
     $("s-air-n").value = settings.air.n; $("s-air-u").value = settings.air.u;
     $("s-sea-n").value = settings.sea.n; $("s-sea-u").value = settings.sea.u;
   }
   function readSettingsForm() {
     return normalise({
-      airRate: $("s-air-rate").value, seaRate: $("s-sea-rate").value, divisor: $("s-divisor").value, xeRate: $("s-xe").value, fxBuffer: $("s-buffer").value,
+      airRate: $("s-air-rate").value, seaRate: $("s-sea-rate").value, divisor: $("s-divisor").value, xeRate: $("s-xe").value, fxBuffer: $("s-buffer").value, rateMode: $("s-mode").value, airMinKg: $("s-airmin").value,
       order: { n: $("s-order-n").value, u: $("s-order-u").value },
       air: { n: $("s-air-n").value, u: $("s-air-u").value },
       sea: { n: $("s-sea-n").value, u: $("s-sea-u").value }
@@ -356,6 +369,22 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     return { arrive, totalDays };
   }
 
+  let live = null;
+  async function loadLive() {
+    const fmtD = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    try {
+      const r = await fetch("https://api.frankfurter.dev/v1/latest?base=AUD&symbols=CNY");
+      const j = await r.json();
+      const v = Number(j && j.rates && j.rates.CNY);
+      if (v > 0) { live = { rate: v, source: "European Central Bank via Frankfurter", date: fmtD(j.date) }; render(); return; }
+    } catch (_) {}
+    try {
+      const r = await fetch("https://open.er-api.com/v6/latest/AUD");
+      const j = await r.json();
+      const v = Number(j && j.rates && j.rates.CNY);
+      if (v > 0) { live = { rate: v, source: "ExchangeRate-API", date: fmtD(j.time_last_update_utc) }; render(); }
+    } catch (_) {}
+  }
   function breakdown(el, product, ship) {
     el.innerHTML = "";
     [["Product cost", product, false], ["Shipping fee", ship, false], ["Total", product + ship, true]].forEach(([k, v, t]) => {
@@ -384,21 +413,28 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     line('<span class="charged">Charged on ' + fmtKg(chargeable) + " kg (" + basis + " weight" + (hasDims ? ", the higher of the two" : "") + ")</span>");
 
     const product = num($("product").value);
-    const airShip = chargeable * settings.airRate;
-    const seaShip = chargeable * settings.seaRate;
+    const airKg = chargeable > 0 ? Math.max(settings.airMinKg, chargeable) : 0;
+    const seaKg = chargeable > 0 ? Math.max(1, Math.round(chargeable)) : 0;
+    const airShip = airKg * settings.airRate;
+    const seaShip = seaKg * settings.seaRate;
     const airCost = product + airShip;
     const seaCost = product + seaShip;
     $("air-cost").innerHTML = fmtRMB(airCost) + "<small>RMB</small>";
     $("sea-cost").innerHTML = fmtRMB(seaCost) + "<small>RMB</small>";
-    const fx = Math.max(0.01, settings.xeRate - settings.fxBuffer);
+    const useLive = settings.rateMode === "live" && live;
+    const base = useLive ? live.rate : settings.xeRate;
+    const fx = Math.max(0.01, base - settings.fxBuffer);
     const fxTxt = fx.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    $("fx-note").textContent = "Exchange rate: 1 AUD = " + base.toLocaleString("en-US", { maximumFractionDigits: 4 }) + " RMB" +
+      (useLive ? " (" + live.source + ", " + live.date + ")" : settings.rateMode === "live" ? " (manual rate; live rate not available)" : " (manual rate)") +
+      ", less " + settings.fxBuffer + " for transfer cost = " + fxTxt + " RMB per AUD.";
     const aud = (rmb) => "≈ AUD " + Math.round(rmb / fx).toLocaleString("en-US");
     $("air-aud").innerHTML = aud(airCost) + " <small>at " + fxTxt + " RMB per AUD</small>";
     $("sea-aud").innerHTML = aud(seaCost) + " <small>at " + fxTxt + " RMB per AUD</small>";
     breakdown($("air-break"), product, airShip);
     breakdown($("sea-break"), product, seaShip);
-    $("air-calc").textContent = "Shipping fee: " + fmtKg(chargeable) + " kg × RMB " + settings.airRate + "/kg";
-    $("sea-calc").textContent = "Shipping fee: " + fmtKg(chargeable) + " kg × RMB " + settings.seaRate + "/kg";
+    $("air-calc").textContent = "Shipping fee: " + fmtKg(airKg) + " kg" + (chargeable > 0 && chargeable < settings.airMinKg ? " (minimum " + fmtInt(settings.airMinKg) + " kg)" : "") + " × RMB " + settings.airRate + "/kg";
+    $("sea-calc").textContent = "Shipping fee: " + seaKg + " kg" + (chargeable > 0 && seaKg !== chargeable ? " (" + fmtKg(chargeable) + " kg rounded to nearest kg" + (Math.round(chargeable) < 1 ? ", minimum 1 kg" : "") + ")" : "") + " × RMB " + settings.seaRate + "/kg";
 
     const a = timeline($("air-time"), "air");
     const s = timeline($("sea-time"), "sea");
@@ -457,6 +493,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
   });
   fillSettingsForm();
   render();
+  loadLive();
 
   (async function load() {
     try {
