@@ -1,4 +1,6 @@
 {
+  "airRateSmall": 60,
+  "airTierKg": 20,
   "airRate": 55,
   "seaRate": 13,
   "divisor": 5000,

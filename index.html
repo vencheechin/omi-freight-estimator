@@ -206,7 +206,16 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     </summary>
     <div class="admin-grid">
       <div class="field">
-        <label class="field-label" for="s-air-rate">Air rate</label>
+        <label class="field-label" for="s-air-small">Air rate under the weight break</label>
+        <div class="input-unit"><input id="s-air-small" type="number" min="0" step="0.5"><span>RMB/kg</span></div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="s-air-tier">Air weight break</label>
+        <div class="input-unit"><input id="s-air-tier" type="number" min="0" step="1"><span>kg</span></div>
+        <span class="hint">This weight and over uses the lower rate</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="s-air-rate">Air rate at the weight break and over</label>
         <div class="input-unit"><input id="s-air-rate" type="number" min="0" step="0.5"><span>RMB/kg</span></div>
       </div>
       <div class="field">
@@ -283,7 +292,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
 <script>
 (function () {
   const DEFAULTS = {
-    airRate: 55, seaRate: 13, divisor: 5000, xeRate: 4.49, fxBuffer: 0.05, rateMode: "live", airMinKg: 1,
+    airRate: 55, airRateSmall: 60, airTierKg: 20, seaRate: 13, divisor: 5000, xeRate: 4.49, fxBuffer: 0.05, rateMode: "live", airMinKg: 1,
     order: { n: 1, u: "days" }, supplier: { n: 5, u: "workdays" }, air: { n: 7, u: "days" }, sea: { n: 2, u: "months" }
   };
   let settings = clone(DEFAULTS);
@@ -336,8 +345,9 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
   function normalise(s) {
     const out = clone(DEFAULTS);
     if (!s || typeof s !== "object") return out;
-    ["airRate", "seaRate", "divisor", "xeRate"].forEach(k => { const v = Number(s[k]); if (isFinite(v) && v > 0) out[k] = v; });
+    ["airRate", "airRateSmall", "seaRate", "divisor", "xeRate"].forEach(k => { const v = Number(s[k]); if (isFinite(v) && v > 0) out[k] = v; });
     { const v = Number(s.fxBuffer); if (isFinite(v) && v >= 0) out.fxBuffer = v; }
+    { const v = Number(s.airTierKg); if (isFinite(v) && v >= 0) out.airTierKg = v; }
     { const v = Number(s.airMinKg); if (isFinite(v) && v >= 0) out.airMinKg = v; }
     if (s.rateMode === "manual" || s.rateMode === "live") out.rateMode = s.rateMode;
     ["order", "supplier", "air", "sea"].forEach(k => {
@@ -348,7 +358,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
   }
 
   function fillSettingsForm() {
-    $("s-air-rate").value = settings.airRate;
+    $("s-air-rate").value = settings.airRate; $("s-air-small").value = settings.airRateSmall; $("s-air-tier").value = settings.airTierKg;
     $("s-sea-rate").value = settings.seaRate;
     $("s-divisor").value = settings.divisor;
     $("s-xe").value = settings.xeRate; $("s-buffer").value = settings.fxBuffer; $("s-mode").value = settings.rateMode; $("s-airmin").value = settings.airMinKg;
@@ -359,7 +369,7 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
   }
   function readSettingsForm() {
     return normalise({
-      airRate: $("s-air-rate").value, seaRate: $("s-sea-rate").value, divisor: $("s-divisor").value, xeRate: $("s-xe").value, fxBuffer: $("s-buffer").value, rateMode: $("s-mode").value, airMinKg: $("s-airmin").value,
+      airRate: $("s-air-rate").value, airRateSmall: $("s-air-small").value, airTierKg: $("s-air-tier").value, seaRate: $("s-sea-rate").value, divisor: $("s-divisor").value, xeRate: $("s-xe").value, fxBuffer: $("s-buffer").value, rateMode: $("s-mode").value, airMinKg: $("s-airmin").value,
       order: { n: $("s-order-n").value, u: $("s-order-u").value },
       supplier: { n: $("s-supp-n").value, u: $("s-supp-u").value },
       air: { n: $("s-air-n").value, u: $("s-air-u").value },
@@ -437,7 +447,8 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
     const product = num($("product").value);
     const airKg = chargeable > 0 ? Math.max(settings.airMinKg, chargeable) : 0;
     const seaKg = chargeable > 0 ? Math.max(1, Math.round(chargeable)) : 0;
-    const airShip = airKg * settings.airRate;
+    const airRateUsed = airKg < settings.airTierKg ? settings.airRateSmall : settings.airRate;
+    const airShip = airKg * airRateUsed;
     const seaShip = seaKg * settings.seaRate;
     const airCost = product + airShip;
     const seaCost = product + seaShip;
@@ -489,18 +500,18 @@ footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 
       money("Shipping fee", airShip, seaShip) +
       money("Total cost", airCost, seaCost, "total") +
       verdicts() +
+      both("ETA", fmtDate(a.arrive), fmtDate(s.arrive), "arrive-row") +
       both("Charged weight", fmtKg(airKg) + " kg", seaKg + " kg") +
       both("Procurement to order", durText(settings.order), durText(settings.order)) +
       both("Supplier to warehouse", durText(settings.supplier), durText(settings.supplier)) +
       both("Transit from China", durText(settings.air), durText(settings.sea)) +
       both("Total time", spanText(a.totalDays), spanText(s.totalDays)) +
-      both("Arrives around", fmtDate(a.arrive), fmtDate(s.arrive), "arrive-row") +
       "</tbody>";
     const notes = $("cmp-notes"); notes.innerHTML = "";
     [
-      "Air shipping: " + fmtKg(airKg) + " kg" + (chargeable > 0 && chargeable < settings.airMinKg ? " (minimum " + fmtInt(settings.airMinKg) + " kg)" : "") + " × RMB " + settings.airRate + "/kg",
+      "Air shipping: " + fmtKg(airKg) + " kg" + (chargeable > 0 && chargeable < settings.airMinKg ? " (minimum " + fmtInt(settings.airMinKg) + " kg)" : "") + " × RMB " + airRateUsed + "/kg (" + (airKg < settings.airTierKg ? "under " + fmtInt(settings.airTierKg) + " kg" : fmtInt(settings.airTierKg) + " kg and over") + ")",
       "Sea shipping: " + seaKg + " kg" + (chargeable > 0 && seaKg !== chargeable ? " (" + fmtKg(chargeable) + " kg rounded to nearest kg" + (Math.round(chargeable) < 1 ? ", minimum 1 kg" : "") + ")" : "") + " × RMB " + settings.seaRate + "/kg",
-      "Arrival dates assume you order today."
+      "ETA assumes you order today."
     ].forEach(t => { const d = document.createElement("div"); d.textContent = t; notes.appendChild(d); });
 
   }
