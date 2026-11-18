@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#233246">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Freight">
+<title>OMI Freight Cost Estimator</title>
+<link rel="icon" href="icons/omi-logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+@font-face { font-family: "EB Garamond"; font-weight: 400; font-style: normal; font-display: swap; src: url(fonts/eb-garamond-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "EB Garamond"; font-weight: 700; font-style: normal; font-display: swap; src: url(fonts/eb-garamond-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "EB Garamond"; font-weight: 400; font-style: italic; font-display: swap; src: url(fonts/eb-garamond-latin-400-italic.woff2) format("woff2"); }
+/* Layout: OMI brand, single cream look. Header strip, one input card, Air vs Sea pair, admin settings below. */
+:root {
+  --cream: #F2EDE3; --navy: #233246; --olive: #7B8060; --ochre: #B5894D;
+  --charcoal: #332F2A; --white: #FFFFFF; --card-beige: #EFE7D6; --card-light: #FBF7EF;
+  --steel: #3E5170; --rule: #D9D0BE;
+  --serif: "EB Garamond", Garamond, "Noto Serif SC", Georgia, "Times New Roman", serif;
+  --zh: "Noto Serif SC", "Songti SC", "EB Garamond", serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--cream); color: var(--charcoal); font-family: var(--serif);
+  font-size: 18px; line-height: 1.45; margin: 0;
+}
+.wrap {
+  max-width: 980px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: max(20px, env(safe-area-inset-top, 0px)) max(28px, env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; gap: 28px;
+}
+.strip { font-weight: 700; color: var(--navy); font-size: 18px; white-space: pre; }
+h1 { margin: 0; color: var(--navy); font-size: clamp(30px, 5vw, 40px); font-weight: 700; line-height: 1.15; text-wrap: balance; }
+h1 .zh, h2 .zh { display: block; font-family: var(--zh); font-size: inherit; }
+.short-rule { width: 70px; height: 3px; background: var(--olive); margin-top: 14px; }
+.lede { color: var(--olive); font-weight: 700; font-size: 20px; margin: 10px 0 0; }
+h2 { margin: 0; color: var(--navy); font-size: 24px; font-weight: 700; line-height: 1.2; }
+h2 .zh { font-size: 20px; color: var(--navy); }
+
+.card { background: var(--card-light); border: 1.25px solid var(--olive); border-radius: 14px; padding: 22px; }
+.inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.inputs .wide { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field-label { font-weight: 700; color: var(--navy); font-size: 18px; }
+.hint { color: var(--olive); font-size: 18px; font-style: italic; }
+.dims { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.input-unit { position: relative; min-width: 0; }
+.input-unit span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--olive); pointer-events: none; font-size: 18px; }
+input[type=number], select {
+  width: 100%; font: inherit; font-size: 20px; color: var(--navy);
+  background: var(--white); border: 1.25px solid var(--rule); border-radius: 10px;
+  padding: 10px 44px 10px 12px; font-variant-numeric: tabular-nums; min-width: 0;
+}
+select { padding-right: 12px; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--ochre); outline-offset: 2px; }
+.dim-tag { font-size: 18px; color: var(--olive); }
+
+.working { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule); color: var(--charcoal); display: flex; flex-direction: column; gap: 4px; font-variant-numeric: tabular-nums; }
+.working b { color: var(--navy); }
+.working .charged { color: var(--ochre); font-weight: 700; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.mode { background: var(--card-light); border: 1.25px solid var(--olive); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.mode.best { border: 1.5px solid var(--ochre); }
+.mode-head { background: var(--navy); color: var(--white); padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+.mode-head svg { flex: none; }
+.mode-head .name { font-size: 22px; font-weight: 700; }
+.mode-head .name .zh { font-family: var(--zh); font-weight: 400; font-size: 18px; margin-left: 6px; }
+.tags { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.tag { border: 1px solid var(--ochre); color: var(--white); border-radius: 999px; padding: 1px 10px; font-size: 16px; white-space: nowrap; }
+.mode-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+.cost { font-size: clamp(36px, 6vw, 46px); font-weight: 700; color: var(--navy); line-height: 1; font-variant-numeric: tabular-nums; }
+.cost small { font-size: 20px; color: var(--olive); font-weight: 400; margin-left: 4px; }
+.calc-line { color: var(--olive); font-size: 18px; font-variant-numeric: tabular-nums; }
+.timeline { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 12px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.timeline .k { color: var(--charcoal); }
+.timeline .dots { border-bottom: 1px dotted var(--rule); transform: translateY(-5px); }
+.timeline .v { color: var(--navy); text-align: right; }
+.timeline .total { font-weight: 700; color: var(--navy); }
+.breakdown { padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+.arrive { background: var(--card-beige); border-radius: 10px; padding: 10px 14px; color: var(--navy); }
+.arrive b { color: var(--ochre); }
+
+.callout { background: var(--navy); border: 1.5px solid var(--ochre); border-radius: 14px; color: var(--white); padding: 16px 22px; text-align: center; font-size: 22px; }
+.callout b { color: var(--ochre); }
+
+.admin-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.status { color: var(--olive); font-style: italic; font-size: 18px; }
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px; margin-top: 16px; }
+.dur { display: grid; grid-template-columns: 1fr 1.1fr; gap: 8px; }
+.dur input { padding-right: 12px; }
+.actions { display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap; align-items: center; }
+button {
+  font: inherit; font-size: 18px; font-weight: 700; border-radius: 10px; padding: 9px 20px; cursor: pointer;
+  background: var(--navy); color: var(--white); border: 1.5px solid var(--navy);
+}
+button.ghost { background: transparent; color: var(--navy); border-color: var(--olive); }
+button:disabled { opacity: .5; cursor: default; }
+summary { list-style: none; cursor: pointer; }
+summary::-webkit-details-marker { display: none; }
+.admin:not([open]) .admin-head h2::after { content: " ›"; color: var(--olive); }
+textarea { width: 100%; min-height: 220px; margin-top: 12px; font: 16px/1.4 ui-monospace, Menlo, monospace; color: var(--navy); background: var(--white); border: 1.25px solid var(--rule); border-radius: 10px; padding: 10px; }
+
+footer { text-align: center; color: var(--olive); font-size: 14px; padding-top: 8px; }
+
+@media (max-width: 720px) {
+  .inputs, .pair { grid-template-columns: 1fr; }
+}
+@media (max-width: 420px) {
+  .dims { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cost { transition: color .2s; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="strip">OMI Group  |  Freight Cost Estimator</div>
+
+  <header>
+    <h1>Freight Cost Estimator<span class="zh">运费估算器</span></h1>
+    <div class="short-rule"></div>
+    <p class="lede">Shipping from our China warehouse: compare the total cost of air and sea before you order.</p>
+  </header>
+
+  <section class="card" aria-labelledby="item-h">
+    <h2 id="item-h" style="margin-bottom:16px">Item details<span class="zh">货品资料</span></h2>
+    <div class="inputs">
+      <div class="field">
+        <label class="field-label" for="product">Product cost</label>
+        <div class="input-unit"><input id="product" type="number" min="0" step="0.01" inputmode="decimal" value="120"><span>RMB</span></div>
+        <span class="hint">Price paid to the supplier</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="weight">Actual weight</label>
+        <div class="input-unit"><input id="weight" type="number" min="0" step="0.01" inputmode="decimal" value="3.2"><span>kg</span></div>
+        <span class="hint">Weighed with packaging</span>
+      </div>
+      <div class="field wide">
+        <span class="field-label" id="dims-label">Carton size (optional)</span>
+        <div class="dims" role="group" aria-labelledby="dims-label">
+          <div class="input-unit"><input id="len" type="number" min="0" step="0.1" inputmode="decimal" value="40" aria-label="Length in cm" placeholder="Length"><span>cm</span></div>
+          <div class="input-unit"><input id="wid" type="number" min="0" step="0.1" inputmode="decimal" value="30" aria-label="Width in cm" placeholder="Width"><span>cm</span></div>
+          <div class="input-unit"><input id="hei" type="number" min="0" step="0.1" inputmode="decimal" value="20" aria-label="Height in cm" placeholder="Height"><span>cm</span></div>
+        </div>
+        <span class="hint">Length × Width × Height. Leave blank to charge on actual weight only.</span>
+      </div>
+    </div>
+    <div class="working" id="working" aria-live="polite"></div>
+  </section>
+
+  <section class="pair" aria-label="Air and sea comparison">
+    <article class="mode" id="air-card">
+      <div class="mode-head">
+        <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="16" cy="16" r="15"/><path d="M8 18.5l16-6.5c1.2-.5 2 .9 1 1.6L17 19.5l-1.5 5-1.6.6-.4-4.4-4.2 1.5-1.4 2-1.2.4.7-3.4z" fill="none"/></svg>
+        <span class="name">Air<span class="zh">空运</span></span>
+        <span class="tags" id="air-tags"></span>
+      </div>
+      <div class="mode-body">
+        <div class="cost" id="air-cost">–</div>
+        <div class="calc-line">Total cost</div>
+        <div class="timeline breakdown" id="air-break"></div>
+        <div class="calc-line" id="air-calc"></div>
+        <div class="timeline" id="air-time"></div>
+        <div class="arrive" id="air-arrive"></div>
+      </div>
+    </article>
+    <article class="mode" id="sea-card">
+      <div class="mode-head">
+        <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="16" cy="16" r="15"/><path d="M7 18h18l-2.5 5h-13z"/><path d="M11 18v-5h10v5"/><path d="M15 13v-3h3"/></svg>
+        <span class="name">Sea<span class="zh">海运</span></span>
+        <span class="tags" id="sea-tags"></span>
+      </div>
+      <div class="mode-body">
+        <div class="cost" id="sea-cost">–</div>
+        <div class="calc-line">Total cost</div>
+        <div class="timeline breakdown" id="sea-break"></div>
+        <div class="calc-line" id="sea-calc"></div>
+        <div class="timeline" id="sea-time"></div>
+        <div class="arrive" id="sea-arrive"></div>
+      </div>
+    </article>
+  </section>
+
+  <div class="callout" id="callout"></div>
+
+  <details class="card admin" id="admin">
+    <summary>
+    <div class="admin-head">
+      <h2 id="admin-h">Admin settings<span class="zh">管理设置</span></h2>
+      <span class="status" id="status">Loading company rates…</span>
+    </div>
+    </summary>
+    <div class="admin-grid">
+      <div class="field">
+        <label class="field-label" for="s-air-rate">Air rate</label>
+        <div class="input-unit"><input id="s-air-rate" type="number" min="0" step="0.5"><span>RMB/kg</span></div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="s-sea-rate">Sea rate</label>
+        <div class="input-unit"><input id="s-sea-rate" type="number" min="0" step="0.5"><span>RMB/kg</span></div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="l-order">Order to warehouse</span>
+        <div class="dur" role="group" aria-labelledby="l-order">
+          <input id="s-order-n" type="number" min="0" step="1" aria-label="Order lead time amount">
+          <select id="s-order-u" aria-label="Order lead time unit"><option value="days">days</option><option value="weeks">weeks</option><option value="months">months</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="l-air">Air transit</span>
+        <div class="dur" role="group" aria-labelledby="l-air">
+          <input id="s-air-n" type="number" min="0" step="1" aria-label="Air transit amount">
+          <select id="s-air-u" aria-label="Air transit unit"><option value="days">days</option><option value="weeks">weeks</option><option value="months">months</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="l-sea">Sea transit</span>
+        <div class="dur" role="group" aria-labelledby="l-sea">
+          <input id="s-sea-n" type="number" min="0" step="1" aria-label="Sea transit amount">
+          <select id="s-sea-u" aria-label="Sea transit unit"><option value="days">days</option><option value="weeks">weeks</option><option value="months">months</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="s-divisor">Volumetric divisor</label>
+        <div class="input-unit"><input id="s-divisor" type="number" min="1" step="100"><span>cm³/kg</span></div>
+      </div>
+    </div>
+    <div class="actions" id="actions">
+      <button id="save" type="button" disabled>Save on this device</button>
+      <button id="reset" type="button" class="ghost">Use company rates</button>
+      <button id="copy" type="button" class="ghost">Copy settings.json</button>
+    </div>
+    <p class="hint" style="margin:14px 0 0">Changes saved here apply only on this device. To change the rates for everyone, update <b>settings.json</b> in the GitHub repo: click Copy settings.json, then paste it over the file on GitHub.</p>
+    <textarea id="json-out" readonly hidden aria-label="settings.json contents"></textarea>
+  </details>
+
+  <footer>Creating a Happier Life for Everyone We Touch</footer>
+</div>
+
+<script>
+(function () {
+  const DEFAULTS = {
+    airRate: 55, seaRate: 13, divisor: 5000,
+    order: { n: 1, u: "weeks" }, air: { n: 7, u: "days" }, sea: { n: 2, u: "months" }
+  };
+  let settings = clone(DEFAULTS);
+  let saved = clone(DEFAULTS);
+  let canWrite = false;
+  let docRef = null;
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  const $ = (id) => document.getElementById(id);
+  const num = (v) => { const n = parseFloat(v); return isFinite(n) && n >= 0 ? n : 0; };
+  const fmtKg = (n) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtRMB = (n) => Math.round(n).toLocaleString("en-US");
+  const fmtInt = (n) => n.toLocaleString("en-US", { maximumFractionDigits: 1 });
+
+  function durText(d) {
+    const n = d.n, u = d.u;
+    const unit = n === 1 ? u.replace(/s$/, "") : u;
+    return fmtInt(n) + " " + unit;
+  }
+  function addDur(date, d) {
+    const r = new Date(date.getTime());
+    if (d.u === "months") {
+      const whole = Math.floor(d.n), frac = d.n - whole;
+      const day = r.getDate();
+      r.setDate(1); r.setMonth(r.getMonth() + whole);
+      const last = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+      r.setDate(Math.min(day, last));
+      if (frac) r.setDate(r.getDate() + Math.round(frac * 30));
+    } else {
+      r.setDate(r.getDate() + Math.round(d.n * (d.u === "weeks" ? 7 : 1)));
+    }
+    return r;
+  }
+  const dayMs = 86400000;
+  function spanText(days) {
+    if (days < 21) return days + " days";
+    if (days < 56) { const w = Math.round(days / 7 * 2) / 2; return "about " + w + " weeks"; }
+    const m = Math.round(days / 30.44 * 2) / 2; return "about " + m + " months";
+  }
+  const fmtDate = (d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+  function normalise(s) {
+    const out = clone(DEFAULTS);
+    if (!s || typeof s !== "object") return out;
+    ["airRate", "seaRate", "divisor"].forEach(k => { const v = Number(s[k]); if (isFinite(v) && v > 0) out[k] = v; });
+    ["order", "air", "sea"].forEach(k => {
+      const d = s[k];
+      if (d && isFinite(Number(d.n)) && Number(d.n) >= 0 && ["days", "weeks", "months"].includes(d.u)) out[k] = { n: Number(d.n), u: d.u };
+    });
+    return out;
+  }
+
+  function fillSettingsForm() {
+    $("s-air-rate").value = settings.airRate;
+    $("s-sea-rate").value = settings.seaRate;
+    $("s-divisor").value = settings.divisor;
+    $("s-order-n").value = settings.order.n; $("s-order-u").value = settings.order.u;
+    $("s-air-n").value = settings.air.n; $("s-air-u").value = settings.air.u;
+    $("s-sea-n").value = settings.sea.n; $("s-sea-u").value = settings.sea.u;
+  }
+  function readSettingsForm() {
+    return normalise({
+      airRate: $("s-air-rate").value, seaRate: $("s-sea-rate").value, divisor: $("s-divisor").value,
+      order: { n: $("s-order-n").value, u: $("s-order-u").value },
+      air: { n: $("s-air-n").value, u: $("s-air-u").value },
+      sea: { n: $("s-sea-n").value, u: $("s-sea-u").value }
+    });
+  }
+  const dirty = () => JSON.stringify(settings) !== JSON.stringify(saved);
+  function refreshSaveBtn() { $("save").disabled = !canWrite || !dirty(); }
+
+  function timeline(el, mode) {
+    const d = settings[mode];
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const atWh = addDur(start, settings.order);
+    const arrive = addDur(atWh, d);
+    const totalDays = Math.round((arrive - start) / dayMs);
+    el.innerHTML = "";
+    const rows = [
+      ["Order and send to warehouse", durText(settings.order), false],
+      [(mode === "air" ? "Air" : "Sea") + " transit from China", durText(d), false],
+      ["Total", spanText(totalDays), true]
+    ];
+    rows.forEach(([k, v, t]) => {
+      const a = document.createElement("span"); a.className = "k" + (t ? " total" : ""); a.textContent = k;
+      const b = document.createElement("span"); b.className = "dots";
+      const c = document.createElement("span"); c.className = "v" + (t ? " total" : ""); c.textContent = v;
+      el.append(a, b, c);
+    });
+    return { arrive, totalDays };
+  }
+
+  function breakdown(el, product, ship) {
+    el.innerHTML = "";
+    [["Product cost", product, false], ["Shipping fee", ship, false], ["Total", product + ship, true]].forEach(([k, v, t]) => {
+      const a = document.createElement("span"); a.className = "k" + (t ? " total" : ""); a.textContent = k;
+      const b = document.createElement("span"); b.className = "dots";
+      const c = document.createElement("span"); c.className = "v" + (t ? " total" : ""); c.textContent = "RMB " + fmtRMB(v);
+      el.append(a, b, c);
+    });
+  }
+  function render() {
+    const w = num($("weight").value);
+    const L = num($("len").value), W = num($("wid").value), H = num($("hei").value);
+    const hasDims = L > 0 && W > 0 && H > 0;
+    const vol = hasDims ? (L * W * H) / settings.divisor : 0;
+    const chargeable = Math.max(w, vol);
+    const basis = !hasDims ? "actual" : (vol > w ? "volumetric" : "actual");
+
+    const wk = $("working"); wk.innerHTML = "";
+    const line = (html) => { const d = document.createElement("div"); d.innerHTML = html; wk.appendChild(d); };
+    if (hasDims) {
+      line("Volumetric weight: " + fmtInt(L) + " × " + fmtInt(W) + " × " + fmtInt(H) + " ÷ " + settings.divisor.toLocaleString("en-US") + " = <b>" + fmtKg(vol) + " kg</b>");
+    } else if (L || W || H) {
+      line("Enter all three sizes to work out volumetric weight.");
+    }
+    line("Actual weight: <b>" + fmtKg(w) + " kg</b>");
+    line('<span class="charged">Charged on ' + fmtKg(chargeable) + " kg (" + basis + " weight" + (hasDims ? ", the higher of the two" : "") + ")</span>");
+
+    const product = num($("product").value);
+    const airShip = chargeable * settings.airRate;
+    const seaShip = chargeable * settings.seaRate;
+    const airCost = product + airShip;
+    const seaCost = product + seaShip;
+    $("air-cost").innerHTML = fmtRMB(airCost) + "<small>RMB</small>";
+    $("sea-cost").innerHTML = fmtRMB(seaCost) + "<small>RMB</small>";
+    breakdown($("air-break"), product, airShip);
+    breakdown($("sea-break"), product, seaShip);
+    $("air-calc").textContent = "Shipping fee: " + fmtKg(chargeable) + " kg × RMB " + settings.airRate + "/kg";
+    $("sea-calc").textContent = "Shipping fee: " + fmtKg(chargeable) + " kg × RMB " + settings.seaRate + "/kg";
+
+    const a = timeline($("air-time"), "air");
+    const s = timeline($("sea-time"), "sea");
+    $("air-arrive").innerHTML = "Arrives around <b>" + fmtDate(a.arrive) + "</b> if ordered today";
+    $("sea-arrive").innerHTML = "Arrives around <b>" + fmtDate(s.arrive) + "</b> if ordered today";
+
+    const tags = { air: [], sea: [] };
+    if (chargeable > 0 || product > 0) {
+      if (airCost < seaCost) tags.air.push("Cheaper"); else if (seaCost < airCost) tags.sea.push("Cheaper");
+    }
+    if (a.totalDays < s.totalDays) tags.air.push("Faster"); else if (s.totalDays < a.totalDays) tags.sea.push("Faster");
+    ["air", "sea"].forEach(m => {
+      const el = $(m + "-tags"); el.innerHTML = "";
+      tags[m].forEach(t => { const x = document.createElement("span"); x.className = "tag"; x.textContent = t; el.appendChild(x); });
+    });
+    $("sea-card").classList.toggle("best", tags.sea.includes("Cheaper"));
+    $("air-card").classList.toggle("best", false);
+
+    const co = $("callout");
+    if (chargeable <= 0) {
+      co.innerHTML = "Enter a weight or carton size to see both options.";
+    } else {
+      const diff = Math.abs(airCost - seaCost);
+      const daysSaved = Math.abs(s.totalDays - a.totalDays);
+      const cheap = seaCost <= airCost ? "Sea" : "Air";
+      const fast = a.totalDays <= s.totalDays ? "Air" : "Sea";
+      co.innerHTML = cheap === fast
+        ? "<b>" + cheap + "</b> is both cheaper and faster for this item."
+        : "Total: Air RMB " + fmtRMB(airCost) + ", Sea RMB " + fmtRMB(seaCost) + ". <b>" + cheap + "</b> saves RMB " + fmtRMB(diff) + ". <b>" + fast + "</b> arrives about " + spanText(daysSaved).replace("about ", "") + " sooner.";
+    }
+  }
+
+  ["product", "weight", "len", "wid", "hei"].forEach(id => $(id).addEventListener("input", render));
+  document.querySelectorAll(".admin-grid input, .admin-grid select").forEach(el => {
+    el.addEventListener("input", () => { settings = readSettingsForm(); render(); refreshSaveBtn(); });
+  });
+  $("reset").addEventListener("click", () => { settings = clone(DEFAULTS); fillSettingsForm(); render(); refreshSaveBtn(); });
+  const LS = "omi-freight-settings";
+  let company = clone(DEFAULTS);
+  canWrite = true;
+  function setStatus() {
+    const local = (() => { try { return localStorage.getItem(LS); } catch (_) { return null; } })();
+    $("status").textContent = local ? "Using this device's own settings." : "Using company rates.";
+  }
+  $("save").addEventListener("click", () => {
+    try { localStorage.setItem(LS, JSON.stringify(settings)); saved = clone(settings); } catch (_) {
+      $("status").textContent = "This browser would not save settings."; return;
+    }
+    setStatus(); refreshSaveBtn();
+  });
+  $("copy").addEventListener("click", async () => {
+    const text = JSON.stringify(settings, null, 2) + "\n";
+    const out = $("json-out"); out.value = text;
+    try { await navigator.clipboard.writeText(text); $("copy").textContent = "Copied"; setTimeout(() => { $("copy").textContent = "Copy settings.json"; }, 2000); }
+    catch (_) { out.hidden = false; out.select(); }
+  });
+  fillSettingsForm();
+  render();
+
+  (async function load() {
+    try {
+      const res = await fetch("settings.json", { cache: "no-cache" });
+      if (res.ok) company = normalise(await res.json());
+    } catch (_) {}
+    let local = null;
+    try { local = JSON.parse(localStorage.getItem(LS) || "null"); } catch (_) {}
+    settings = local ? normalise(local) : clone(company);
+    saved = clone(settings);
+    fillSettingsForm(); render(); setStatus(); refreshSaveBtn();
+  })();
+  $("reset").onclick = null;
+  $("reset").replaceWith($("reset").cloneNode(true));
+  $("reset").addEventListener("click", () => {
+    try { localStorage.removeItem(LS); } catch (_) {}
+    settings = clone(company); saved = clone(company);
+    fillSettingsForm(); render(); setStatus(); refreshSaveBtn();
+  });
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>

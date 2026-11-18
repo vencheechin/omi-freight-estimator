@@ -1,0 +1,8 @@
+{
+  "airRate": 55,
+  "seaRate": 13,
+  "divisor": 5000,
+  "order": { "n": 1, "u": "weeks" },
+  "air": { "n": 7, "u": "days" },
+  "sea": { "n": 2, "u": "months" }
+}
